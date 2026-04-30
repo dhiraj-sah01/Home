@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    /* 🚫 Disable text selection */
+    body {
+      font-family: Arial;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      transition: 0.3s;
+
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+    }
+
+    /* allow typing */
+    input {
+      user-select: text;
+    }
+
+    /* 🌞 LIGHT */
+    body.light {
+      background: linear-gradient(270deg, #5f72bd, #9b23ea, #6a11cb, #2575fc);
+      background-size: 600% 600%;
+      animation: gradientMove 12s ease infinite;
+      color: white;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* 🌙 DARK */
+    body.dark {
+      background: #121212;
+      color: #e0e0e0;
+    }
+
+    body.no-anim {
+      animation: none !important;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+    }
+
+    .actions button {
+      margin-left: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    body.light .actions button {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+
+    body.dark .actions button {
+      background: #1f1f1f;
+      color: #e0e0e0;
+    }
+
+    /* GRID */
+    .grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    /* CARD */
+    .card {
+      border-radius: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    body.light .card {
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px);
+    }
+
+    body.dark .card {
+      background: #1e1e1e;
+    }
+
+    /* hover */
+    .card:hover {
+      transform: translateY(-6px) scale(1.02);
+    }
+
+    .card:active {
+      transform: scale(0.95);
+    }
+
+    /* STATES */
+    .on-state {
+      background: #69ac6b !important;
+    }
+
+    .off-state {
+      background: #e56c6c !important;
+    }
+
+    /* TITLE */
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .edit-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    /* MODAL */
+    #modal {
+      display: none;
+      position: fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background: rgba(0,0,0,0.6);
+      justify-content:center;
+      align-items:center;
+    }
+
+    .modal-box {
+      background: #2c2c2c;
+      padding: 20px;
+      border-radius: 12px;
+      width: 250px;
+      text-align: center;
+      color: white;
+    }
+
+    body.light .modal-box {
+      background: white;
+      color: black;
+    }
+
+    input {
+      padding: 10px;
+      width: 90%;
+      border-radius: 6px;
+      border: none;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin: 5px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+
+    /* MOBILE */
+    @media (max-width: 600px) {
+      body { overflow-y: auto; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <h2>Smart Home</h2>
+
+  <div class="actions">
+    <button onclick="toggleTheme()" id="themeBtn">🌙</button>
+    <button onclick="toggleAnimation()">🎞️</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<!-- MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <h3>Edit Name</h3>
+    <input id="nameInput">
+    <br><br>
+    <button onclick="saveName()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAGfYDl4b5cKGyUYDbtYEhIg5-V332R-Ag",
+  authDomain: "bol-bam-seller-mill.firebaseapp.com",
+  databaseURL: "https://bol-bam-seller-mill.firebaseio.com/",
+  projectId: "bol-bam-seller-mill",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+
+let currentRelay = null;
+let relayNames = {};
+
+/* 🚫 disable copy & right click */
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+    e.preventDefault();
+  }
+});
+
+/* LOAD SETTINGS */
+const savedTheme = localStorage.getItem("theme") || "light";
+document.body.className = savedTheme;
+
+const savedAnim = localStorage.getItem("anim");
+if (savedAnim === "off") document.body.classList.add("no-anim");
+
+/* THEME */
+window.toggleTheme = function() {
+  const body = document.body;
+  const btn = document.getElementById("themeBtn");
+
+  if (body.classList.contains("light")) {
+    body.classList.replace("light","dark");
+    btn.innerText = "☀️";
+    localStorage.setItem("theme","dark");
+  } else {
+    body.classList.replace("dark","light");
+    btn.innerText = "🌙";
+    localStorage.setItem("theme","light");
+  }
+};
+
+/* ANIMATION */
+window.toggleAnimation = function() {
+  if (document.body.classList.contains("no-anim")) {
+    document.body.classList.remove("no-anim");
+    localStorage.setItem("anim","on");
+  } else {
+    document.body.classList.add("no-anim");
+    localStorage.setItem("anim","off");
+  }
+};
+
+/* MODAL */
+window.closeModal = () => document.getElementById("modal").style.display="none";
+
+window.saveName = () => {
+  let val = document.getElementById("nameInput").value;
+  if(val && currentRelay !== null){
+    set(ref(db,"relays/relay"+currentRelay+"/name"), val);
+  }
+  closeModal();
+};
+
+window.logout = () => signOut(auth).then(()=>location.href="index.html");
+
+function getIcon(name){
+  name = name.toLowerCase();
+  if(name.includes("light")) return "💡";
+  if(name.includes("fan")) return "🌀";
+  if(name.includes("tv")) return "📺";
+  return "🔌";
+}
+
+onAuthStateChanged(auth, user=>{
+  if(!user){
+    location.href="index.html";
+    return;
+  }
+
+  const grid = document.getElementById("grid");
+
+  for(let i=1;i<=8;i++){
+
+    let card = document.createElement("div");
+    card.className = "card off-state";
+
+    let title = document.createElement("h3");
+
+    let edit = document.createElement("button");
+    edit.innerText = "✏️";
+    edit.className = "edit-btn";
+
+    let row = document.createElement("div");
+    row.className = "title-row";
+
+    row.appendChild(title);
+    row.appendChild(edit);
+
+    card.onclick = ()=>{
+      let state = card.classList.contains("on-state") ? 1 : 0;
+      set(ref(db,"relays/relay"+i+"/state"), state ? 0 : 1);
+    };
+
+    edit.onclick = (e)=>{
+      e.stopPropagation();
+      currentRelay = i;
+      document.getElementById("modal").style.display = "flex";
+      document.getElementById("nameInput").value = relayNames[i] || "";
+    };
+
+    onValue(ref(db,"relays/relay"+i), snap=>{
+      let d = snap.val();
+      if(!d) return;
+
+      let name = d.name || ("Relay "+i);
+      relayNames[i] = name;
+
+      title.innerText = getIcon(name) + " " + name;
+
+      if(d.state == 1){
+        card.className = "card on-state";
+      } else {
+        card.className = "card off-state";
+      }
+    });
+
+    card.appendChild(row);
+    grid.appendChild(card);
+  }
+});
+</script>
+
+</body>
+</html>
