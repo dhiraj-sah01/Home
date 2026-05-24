@@ -180,9 +180,41 @@
 
 
     /* MOBILE */
+    /* MOBILE */
     @media (max-width: 600px) {
-      body { overflow-y: auto; }
-      .grid { grid-template-columns: 1fr; }
+
+      body {
+        overflow-y: auto;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+      }
+
+      .actions button {
+        flex: 1;
+        margin-left: 0;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+
+      #deviceStatus {
+        font-size: 13px;
+      }
     }
   </style>
 </head>
@@ -191,18 +223,29 @@
 
 <div class="topbar">
 
-  <div style="display:flex;align-items:center;gap:12px;">
-    <h2 style="margin:0;">Smart Home</h2>
+  <div style="
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  ">
+
+    <h2 style="margin:0;">
+      Smart Home
+    </h2>
 
     <div id="deviceStatus"
-         style="font-size:14px;font-weight:bold;">
+         style="
+         font-size:14px;
+         font-weight:bold;
+         ">
       🔴 Offline
     </div>
+
   </div>
 
   <div class="actions">
     <button onclick="toggleTheme()" id="themeBtn">🌙</button>
-    <button onclick="toggleAnimation()">🎞️</button>
     <button onclick="logout()">Logout</button>
   </div>
 
@@ -273,16 +316,7 @@ window.toggleTheme = function() {
   }
 };
 
-/* ANIMATION */
-window.toggleAnimation = function() {
-  if (document.body.classList.contains("no-anim")) {
-    document.body.classList.remove("no-anim");
-    localStorage.setItem("anim","on");
-  } else {
-    document.body.classList.add("no-anim");
-    localStorage.setItem("anim","off");
-  }
-};
+
 
 /* MODAL */
 window.closeModal = () => document.getElementById("modal").style.display="none";
@@ -342,7 +376,7 @@ setInterval(() => {
     );
 
   isDeviceOnline =
-    (now - lastSeen) < 3;
+    (now - lastSeen) < 2;
 
   status.innerHTML =
     isDeviceOnline
